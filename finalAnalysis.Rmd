@@ -1,0 +1,806 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Phil Ramontal
+CIS 627
+NFL Analysis 
+
+
+
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+library(caTools)
+library(caret)
+library(ROCR)
+library(MASS)
+library(randomForest)
+library(neuralnet)
+library(rpart)
+library(e1071)
+library(tree)
+```
+
+
+```{r}
+#Import dataset
+nfl_data<-read_csv("NFL Play by Play 2009-2018.csv")
+```
+
+
+```{r}
+#omit all NA's from dataset
+nfl_na<-drop_na(nfl_data)
+```
+  
+
+```{r}
+nfl1<-subset(nfl_na, play_type == "pass")
+nfl2<-subset(nfl_na,  play_type == "run")
+nflDataa<-rbind(nfl1,  nfl2)
+
+print(nflDataa)
+```
+
+```{r}
+numeric.var <- sapply(nflDataa, is.numeric)
+
+corrplot(cor(nflDataa[,numeric.var]), method = "number", number.cex = 0.7)
+```
+
+
+```{r}
+nflDataa$yards_gained<-as.integer(nflDataa$yards_gained)
+nflDataa$down<-as.integer(nflDataa$down)
+nflDataa$ydsnet<-as.integer(nflDataa$ydsnet)
+nflDataa$yardline_100<-as.integer(nflDataa$yardline_100)
+```
+
+
+```{r}
+#What playtype should be excuted between each 10 yard increment on down 1-4
+yard100<-subset(nflDataa, yardline_100 >=50 & down == "1")
+yard50<-subset(nflDataa, yardline_100 >=0 & yardline_100 <50 & down == "1")
+
+```
+```{r}
+yard100_2<-subset(nflDataa, yardline_100 >=50 & down == "2")
+yard50_2<-subset(nflDataa, yardline_100 >=0 & yardline_100 <50 & down == "2")
+
+```
+```{r}
+yard100_3<-subset(nflDataa, yardline_100 >=50 & down == "3")
+yard50_3<-subset(nflDataa, yardline_100 >=0 & yardline_100 <50 & down == "3")
+
+```
+```{r}
+yard100_4<-subset(nflDataa, yardline_100 >=50 & down == "4")
+yard50_4<-subset(nflDataa, yardline_100 >=0 & yardline_100 <50 & down == "4")
+
+```
+
+# Yard 100-50 Best Play Type prediction Down 1
+```{r}
+set.seed(123)
+yard100<-subset(nflDataa, yardline_100 >=50 & down == "1")
+yard100$play_type<-as.factor(yard100$play_type)
+sample<-sample.split(yard100$play_type, SplitRatio = .70)
+training<-subset(yard100, sample == TRUE)
+print(training)
+testing<-subset(yard100, sample == FALSE)
+print(testing)
+```
+
+
+```{r}
+#Support Vector Machine Model down 1 
+svm_nfl <- svm(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet, data = training, prob.model = TRUE)
+
+
+plot(svm_nfl, training, ydstogo~yards_gained)
+
+svm_pred<- predict(svm_nfl,newdata = testing)
+
+tb<- table(testing$play_type, svm_pred)
+tb
+results_svm<-data.frame(Actual = testing$play_type, Prediction = svm_pred)
+confusionMatrix(tb)
+
+tn<-subset(results_svm, Actual == "run" & Prediction == "run")
+tp<-subset(results_svm, Actual == "pass" & Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass" & Prediction == "run")
+fn<-subset(results_svm, Actual == "run"& Prediction == "pass")
+svm_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+svm_tp<-ifelse(results_svm$Actual == results_svm$Prediction, 1,0)
+svm_tp<-as.data.frame(svm_tp)
+svm_tp$model<-"svm"
+names(svm_tp)[1] = "accuracy"
+```
+
+```{r}
+#ANN model down 1
+nfl_nn<-neuralnet(play_type ~ yards_gained + yardline_100 +  down + qtr + ydsnet ,data = training, hidden =2)
+
+```
+
+
+```{r}
+nfl_nn$result.matrix
+plot(nfl_nn)
+#Prediction
+
+temp_test<-subset(testing,select = c("yards_gained", "yardline_100", "down", "ydsnet", "qtr"))
+head(temp_test)       
+nfl_nn.results<-compute(nfl_nn,temp_test)
+nfl_nn.results$net.result
+prob<-nfl_nn.results$net.result
+#nn_pred<-predict(nfl_nn, newdata =  testing, type = "matrix" )
+ann<-ifelse(prob>=.5, "run", "pass")
+ann<-as.vector(ann)
+resultsann<-data.frame(Actual = testing$play_type, Prediction = ann)
+tb_ann<-table(resultsann$Actual, resultsann$Prediction)
+
+
+confusionMatrix(tb_ann)
+
+tn<-subset(resultsann, Actual == "run" & Prediction == "run")
+ann_tp<-subset(resultsann, Actual == "pass" & Prediction == "pass")
+fp<-subset(resultsann, Actual == "pass" & Prediction == "run")
+fn<-subset(resultsann, Actual == "run"& Prediction == "pass")
+ann_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+ann_tp<-ifelse(resultsann$Actual == resultsann$Prediction, 1,0)
+ann_tp<-as.data.frame(ann_tp)
+ann_tp$model<-"ann"
+names(ann_tp)[1] = "accuracy"
+```
+
+
+```{r}
+#RandonForest model down 1
+library(party)
+random_nfl<-randomForest(play_type ~ yards_gained + yardline_100 + qtr + ydsnet ,data = training)
+random_nfl
+
+plot(random_nfl)
+
+
+#Prediction
+ranForest_pred<-predict(random_nfl, testing)
+
+ran_tb<-table(testing$play_type, ranForest_pred, dnn = c("Actual", "Prediction"))
+results_rf<-data.frame(Actual = testing$play_type, Prediction = ranForest_pred)
+
+confusionMatrix(ran_tb)
+
+tn<-subset(results_rf, Actual == "run"& Prediction == "run")
+rf_tp<-subset(results_rf, Actual == "pass"&Prediction == "pass")
+fp<-subset(results_rf, Actual == "pass"& Prediction == "run")
+fn<-subset(results_rf, Actual == "run"& Prediction == "pass")
+rf_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+rf_tp<-ifelse(results_rf$Actual == results_rf$Prediction, 1,0)
+rf_tp<-as.data.frame(rf_tp)
+rf_tp$model<-"rf"
+names(rf_tp)[1] = "accuracy"
+```
+
+
+```{r}
+compare<-data.frame(method = c("Support Vector Machine", "Neural Network", "Random Forest"), accuracy = c(svm_accuracy, ann_accuracy, rf_accuracy))
+ggplot(data = compare, mapping = aes(x= method, y = accuracy, fill = method)) +geom_bar(stat = "identity")+geom_text(aes(label = round(accuracy,4)), position = position_stack(vjust = .5), color = "white") + labs (x = "Method", y = "Accuracy", title = "Accuracy for Down 1 Yard Line 100-50")
+```
+
+```{r}
+truepositive<-rbind(svm_tp,ann_tp,rf_tp)
+truepositive<-as.data.frame(truepositive)
+truepositive$model<-as.factor(truepositive$model)
+anova_model<-aov(accuracy~model, data = truepositive)
+summary(anova_model)
+```
+
+
+
+# Yard Line 50-0 Best Play Type prediction Down 1
+```{r}
+set.seed(123)
+yard50<-subset(nflDataa, yardline_100 >=0 & yardline_100 <50 & down == "1")
+yard50$play_type<-as.factor(yard50$play_type)
+sample<-sample.split(yard50$play_type, SplitRatio = .70)
+training1<-subset(yard50, sample == TRUE)
+testing1<-subset(yard50, sample == FALSE)
+```
+
+```{r}
+#Support Vector Machine Model #2 Down 1 Yard 0-50
+svm_nfl1 <- svm(play_type ~ yards_gained + yardline_100 + down  + qtr + ydsnet, data = training1, prob.model = TRUE)
+svm_nfl1
+
+plot(svm_nfl1, training1, ydstogo~yards_gained)
+
+svm_pred1<- predict(svm_nfl1,newdata = testing1)
+
+tab<- table(testing1$play_type, svm_pred1)
+
+results_svm1<-data.frame(Actual = testing1$play_type, Prediction = svm_pred1)
+
+confusionMatrix(tab)
+
+tn<-subset(results_svm1, Actual == "run"& Prediction == "run")
+tp<-subset(results_svm1, Actual == "pass"& Prediction == "pass")
+fp<-subset(results_svm1, Actual == "pass"& Prediction == "run")
+fn<-subset(results_svm1, Actual == "run"& Prediction == "pass")
+svm1_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+svm_tp1<-ifelse(results_svm1$Actual == results_svm1$Prediction, 1,0)
+svm_tp1<-as.data.frame(svm_tp1)
+svm_tp1$model1<-"SVM1"
+names(svm_tp1)[1] = "accuracy1"
+```
+
+```{r}
+#ANN model Down 1 Yard 0-50
+nfl_nn1<-neuralnet(play_type ~ yards_gained + yardline_100 +  down + qtr + ydsnet ,data = training1, hidden =2)
+
+
+nfl_nn1$result.matrix
+ plot(nfl_nn1)
+#Prediction
+
+temp_test1<-subset(testing1,select = c("yards_gained", "yardline_100", "down", "ydsnet", 'qtr'))
+head(temp_test1)       
+nfl_nn.results1<-compute(nfl_nn1,temp_test1)
+nfl_nn.results1$net.result
+prob1<-nfl_nn.results1$net.result
+ann1<-ifelse(prob1>=.5, "run", "pass")
+ann1<-as.vector(ann1)
+resultsann1<-data.frame(Actual = testing1$play_type, Prediction = ann1)
+tb_ann1<-table(resultsann1$Actual, resultsann1$Prediction)
+
+confusionMatrix(tb_ann)
+
+tn<-subset(resultsann1, Actual == "run"& Prediction == "run")
+tp<-subset(resultsann1, Actual == "pass"& Prediction == "pass")
+fp<-subset(resultsann1, Actual == "pass"& Prediction == "run")
+fn<-subset(resultsann1, Actual == "run"& Prediction == "pass")
+ann1_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+ann_tp1<-ifelse(resultsann1$Actual == resultsann1$Prediction, 1,0)
+ann_tp1<-as.data.frame(ann_tp1)
+ann_tp1$model1<-"ANN1"
+names(ann_tp1)[1] = "accuracy1"
+```
+
+```{r}
+random_nfl1<-randomForest(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet, method = "anova",  data = training1)
+random_nfl1
+
+plot(random_nfl1)
+
+#Prediction
+ranForest_pred1<-predict(random_nfl1, testing1)
+
+ran_tb1<-table(testing1$play_type, ranForest_pred1, dnn = c("Actual", "Prediction"))
+results_rf1<-data.frame(Actual = testing1$play_type, Prediction = ranForest_pred1)
+
+
+confusionMatrix(ran_tb1)
+
+tn<-subset(results_svm, Actual == "run"& Prediction == "run")
+tp<-subset(results_svm, Actual == "pass"& Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass"& Prediction == "run")
+fn<-subset(results_svm, Actual == "run"& Prediction == "pass")
+rf1_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+rf_tp1<-ifelse(results_rf1$Actual == results_rf1$Prediction, 1,0)
+rf_tp1<-as.data.frame(rf_tp1)
+rf_tp1$model1<-"RF1"
+names(rf_tp1)[1] = "accuracy1"
+```
+
+```{r}
+compare1<-data.frame(method = c("Support Vector Machine", "Neural Network", "Random Forest"), accuracy = c(svm1_accuracy, ann1_accuracy, rf1_accuracy))
+ggplot(data = compare1, mapping = aes(x= method, y = accuracy, fill = method)) +geom_bar(stat = "identity")+geom_text(aes(label = round(accuracy,4)), position = position_stack(vjust = .5), color = "white") + labs (x = "Method", y = "Accuracy", title = "Accuracy for Down 1 Yard Line 50-0")
+```
+
+
+# Yard 100-50 Best Play Type prediction Down 2
+```{r}
+set.seed(123)
+yard100_2$play_type<-as.factor(yard100_2$play_type)
+sample<-sample.split(yard100_2$play_type, SplitRatio = .70)
+training2<-subset(yard100_2, sample == TRUE)
+testing2<-subset(yard100_2, sample == FALSE)
+```
+
+```{r}
+#Support Vector Machine Model 1 down 2 Yard 100-50
+svm_nfl2 <- svm(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet, data = training2, prob.model = TRUE)
+svm_nfl2
+
+plot(svm_nfl2, training2, ydstogo~yards_gained)
+
+svm_pred2<- predict(svm_nfl2,newdata = testing2)
+
+tab2<- table(Actual = testing2$play_type, svm_pred2)
+
+results_svm2<-data.frame(Actual = testing2$play_type, Prediction = svm_pred2)
+
+confusionMatrix(tab2)
+
+tn<-subset(results_svm2, Actual == "run"& Prediction == "run")
+tp<-subset(results_svm2, Actual == "pass"& Prediction == "pass")
+fp<-subset(results_svm2, Actual == "pass"& Prediction == "run")
+fn<-subset(results_svm2, Actual == "run"& Prediction == "pass")
+svm2_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+svm_tp2<-ifelse(results_svm2$Actual == results_svm2$Prediction, 1,0)
+svm_tp2<-as.data.frame(svm_tp2)
+svm_tp1$model<-"SVM2"
+names(svm_tp2)[1] = "accuracy"
+```
+
+```{r}
+#ANN model down 2 Yard 100-50
+nfl_nn2<-neuralnet(play_type ~ yards_gained + yardline_100 +  down + qtr + ydsnet ,data = training2, hidden =2)
+
+
+nfl_nn2$result.matrix
+plot(nfl_nn2)
+#Prediction
+
+temp_test2<-subset(testing2,select = c("yards_gained", "yardline_100", "down", "qtr", "ydsnet"))
+head(temp_test2)       
+nfl_nn.results2<-compute(nfl_nn2,temp_test2)
+nfl_nn.results2$net.result
+prob2<-nfl_nn.results2$net.result
+ann2<-ifelse(prob2>=.5, "run", "pass")
+ann2<-as.vector(ann2)
+resultsann2<-data.frame(Actual = testing2$play_type, Prediction = ann2)
+tb_ann2<-table(resultsann2$Actual, resultsann2$Prediction)
+
+
+confusionMatrix(tb_ann2)
+
+tn<-subset(resultsann2, Actual == "run"& Prediction == "run")
+tp<-subset(resultsann2, Actual == "pass"& Prediction == "pass")
+fp<-subset(resultsann2, Actual == "pass"& Prediction == "run")
+fn<-subset(resultsann2, Actual == "run"& Prediction == "pass")
+ann2_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+ann_tp2<-ifelse(resultsann2$Actual == resultsann2$Prediction, 1,0)
+ann_tp2<-as.data.frame(ann_tp2)
+ann_tp2$model1<-"ANN2"
+names(ann_tp2)[1] = "accuracy"
+```
+
+```{r}
+#RandomForest model Down 2 yard 100-50
+random_nfl2<-randomForest(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet  ,data = training2)
+random_nfl2
+
+plot(random_nfl2)
+
+#Prediction
+ranForest_pred2<-predict(random_nfl2, testing2)
+
+ran_tb2<-table(testing2$play_type, ranForest_pred2, dnn = c("Actual", "Prediction"))
+results_rf2<-data.frame(Actual = testing2$play_type, Prediction = ranForest_pred2)
+
+
+confusionMatrix(ran_tb2)
+
+tn<-subset(results_rf2, Actual == "run"& Prediction == "run")
+tp<-subset(results_rf2, Actual == "pass"& Prediction == "pass")
+fp<-subset(results_rf2, Actual == "pass"& Prediction == "run")
+fn<-subset(results_rf2, Actual == "run"& Prediction == "pass")
+rf2_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+rf_tp2<-ifelse(results_rf1$Actual == results_rf1$Prediction, 1,0)
+rf_tp2<-as.data.frame(rf_tp1)
+rf_tp2$model<-"RF2"
+names(rf_tp2)[1] = "accuracy"
+```
+
+```{r}
+#Comparing Accuracies
+compare2<-data.frame(method = c("Support Vector Machine", "Neural Network", "Random Forest"), accuracy = c(svm2_accuracy, ann2_accuracy, rf2_accuracy))
+ggplot(data = compare2, mapping = aes(x= method, y = accuracy, fill = method)) +geom_bar(stat = "identity")+geom_text(aes(label = round(accuracy,4)), position = position_stack(vjust = .5), color = "white") + labs (x = "Method", y = "Accuracy", title = "Accuracy for Down 2 Yard Line 100-50")
+```
+
+
+# Yard 0-50 Best Play Type prediction Down 2
+```{r}
+set.seed(123)
+yard50_2$play_type<-as.factor(yard50_2$play_type)
+sample<-sample.split(yard50_2$play_type, SplitRatio = .70)
+training3<-subset(yard50_2, sample == TRUE)
+testing3<-subset(yard50_2, sample == FALSE)
+```
+
+```{r}
+#Support Vector Machine Model Down 2 Yard 0-50
+svm_nfl3 <- svm(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet, data = training3, prob.model = TRUE)
+svm_nfl3
+
+plot(svm_nfl3, training3, ydstogo~yards_gained)
+
+svm_pred3<- predict(svm_nfl3,newdata = testing3)
+
+tab3<- table(testing3$play_type, svm_pred3)
+
+results_svm3<-data.frame(Actual = testing3$play_type, Prediction = svm_pred3)
+
+confusionMatrix(tab3)
+
+tn<-subset(results_svm3, Actual == "run"& Prediction == "run")
+tp<-subset(results_svm3, Actual == "pass"& Prediction == "pass")
+fp<-subset(results_svm3, Actual == "pass"& Prediction == "run")
+fn<-subset(results_svm3, Actual == "run"& Prediction == "pass")
+svm3_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+svm_tp3<-ifelse(results_svm3$Actual == results_svm3$Prediction, 1,0)
+svm_tp3<-as.data.frame(svm_tp3)
+svm_tp3$model<-"SVM3"
+names(svm_tp3)[1] = "accuracy"
+```
+
+```{r}
+#ANN model Down 2 Yard 0-50
+nfl_nn3<-neuralnet(play_type ~ yards_gained + yardline_100 +  down + qtr + ydsnet ,data = training3, hidden =2)
+
+  
+nfl_nn3$result.matrix
+plot(nfl_nn3)
+#Prediction
+
+temp_test3<-subset(testing3,select = c("yards_gained", "yardline_100", "down", "qtr", "ydsnet"))
+head(temp_test3)       
+nfl_nn.results3<-compute(nfl_nn3,temp_test3)
+nfl_nn.results3$net.result
+prob3<-nfl_nn.results3$net.result
+ann3<-ifelse(prob3>=.5, "run", "pass")
+ann3<-as.vector(ann3)
+resultsann3<-data.frame(Actual = testing3$play_type, Prediction = ann3)
+tb_ann3<-table(resultsann3$Actual, resultsann3$Prediction)
+
+
+confusionMatrix(tb_ann3)
+
+tn<-subset(resultsann3, Actual == "run"& Prediction == "run")
+tp<-subset(resultsann3, Actual == "pass"& Prediction == "pass")
+fp<-subset(resultsann3, Actual == "pass"& Prediction == "run")
+fn<-subset(resultsann3, Actual == "run"& Prediction == "pass")
+ann3_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+ann_tp3<-ifelse(resultsann3$Actual == resultsann3$Prediction, 1,0)
+ann_tp3<-as.data.frame(ann_tp3)
+ann_tp3$model<-"ANN3"
+names(ann_tp3)[1] = "accuracy"
+```
+
+```{r}
+random_nfl3<-randomForest(play_type ~ yards_gained + yardline_100 + down  + qtr + ydsnet ,data = training3)
+random_nfl3
+
+plot(random_nfl3)
+
+#Prediction
+ranForest_pred3<-predict(random_nfl3, testing3)
+
+ran_tb3<-table(testing3$play_type, ranForest_pred3, dnn = c("Actual", "Prediction"))
+results_rf3<-data.frame(Actual = testing3$play_type, Prediction = ranForest_pred3)
+
+
+confusionMatrix(ran_tb3)
+
+tn<-subset(results_svm, Actual == "run"& Prediction == "run")
+tp<-subset(results_svm, Actual == "pass"& Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass"& Prediction == "run")
+fn<-subset(results_svm, Actual == "run"& Prediction == "pass")
+rf3_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+rf_tp3<-ifelse(results_rf3$Actual == results_rf3$Prediction, 1,0)
+rf_tp3<-as.data.frame(rf_tp3)
+rf_tp3$model<-"RF3"
+names(rf_tp3)[1] = "accuracy"
+```
+
+```{r}
+#Comparing Accuracies
+compare3<-data.frame(method = c("Support Vector Machine", "Neural Network", "Random Forest"), accuracy = c(svm3_accuracy, ann3_accuracy, rf3_accuracy))
+ggplot(data = compare3, mapping = aes(x= method, y = accuracy, fill = method)) +geom_bar(stat = "identity")+geom_text(aes(label = round(accuracy,4)), position = position_stack(vjust = .5), color = "white") + labs (x = "Method", y = "Accuracy", title = "Accuracy for Down 2 Yard Line 50-0")
+```
+
+
+# Yard 100-50 Best Play Type prediction Down 3
+
+```{r}
+set.seed(123)
+yard100_3$play_type<-as.factor(yard100_3$play_type)
+sample<-sample.split(yard100_3$play_type, SplitRatio = .70)
+training4<-subset(yard100_3, sample == TRUE)
+testing4<-subset(yard100_3, sample == FALSE)
+```
+
+```{r}
+#Support Vector Machine Model down 3 yard 100-50
+svm_nfl4 <- svm(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet, data = training4, prob.model = TRUE)
+svm_nfl4
+
+plot(svm_nfl4, training4, ydstogo~yards_gained)
+
+svm_pred4<- predict(svm_nfl4,newdata = testing4)
+
+tab4<- table(testing4$play_type, svm_pred4)
+
+results_svm4<-data.frame(Actual = testing4$play_type, Prediction = svm_pred4)
+
+confusionMatrix(tab4)
+
+tn<-subset(results_svm4, Actual == "run", Prediction == "run")
+tp<-subset(results_svm4, Actual == "pass", Prediction == "pass")
+fp<-subset(results_svm4, Actual == "pass", Prediction == "run")
+fn<-subset(results_svm4, Actual == "run", Prediction == "pass")
+svm4_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+svm_tp4<-ifelse(results_svm4$Actual == results_svm4$Prediction, 1,0)
+svm_tp4<-as.data.frame(svm_tp4)
+svm_tp4$model<-"SVM4"
+names(svm_tp4)[1] = "accuracy"
+```
+
+```{r}
+nfl_nn4<-neuralnet(play_type ~ yards_gained + yardline_100 +  down + qtr + ydsnet ,data = training4, hidden =2)
+
+
+nfl_nn4$result.matrix
+plot(nfl_nn4)
+#Prediction
+
+temp_test4<-subset(testing4,select = c("yards_gained", "yardline_100", "down", "qtr", "ydsnet"))
+head(temp_test4)       
+nfl_nn.results4<-compute(nfl_nn4,temp_test4)
+nfl_nn.results4$net.result
+prob4<-nfl_nn.results4$net.result
+ann4<-ifelse(prob4>=.5, "run", "pass")
+ann4<-as.vector(ann4)
+resultsann4<-data.frame(Actual = testing4$play_type, Prediction = ann4)
+tb_ann4<-table(resultsann4$Actual, resultsann4$Prediction)
+
+
+confusionMatrix(tb_ann4)
+
+tn<-subset(resultsann4, Actual == "run", Prediction == "run")
+tp<-subset(resultsann4, Actual == "pass", Prediction == "pass")
+fp<-subset(resultsann4, Actual == "pass", Prediction == "run")
+fn<-subset(resultsann4, Actual == "run", Prediction == "pass")
+ann4_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+ann_tp4<-ifelse(resultsann4$Actual == resultsann4$Prediction, 1,0)
+ann_tp4<-as.data.frame(ann_tp4)
+ann_tp4$model<-"ANN4"
+names(ann_tp4)[1] = "accuracy"
+```
+
+```{r}
+#RandonForest model down 3 Yard 100-50
+random_nfl4<-randomForest(play_type ~ yards_gained + yardline_100 + down + qtr + ydsnet  ,data = training4)
+random_nfl4
+
+plot(random_nfl4)
+
+#Prediction
+ranForest_pred4<-predict(random_nfl4, testing4)
+
+ran_tb4<-table(testing4$play_type, ranForest_pred4, dnn = c("Actual", "Prediction"))
+results_rf4<-data.frame(Actual = testing4$play_type, Prediction = ranForest_pred4)
+
+
+confusionMatrix(ran_tb4)
+
+tn<-subset(results_svm, Actual == "run", Prediction == "run")
+tp<-subset(results_svm, Actual == "pass", Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass", Prediction == "run")
+fn<-subset(results_svm, Actual == "run", Prediction == "pass")
+rf4_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+rf_tp4<-ifelse(results_rf4$Actual == results_rf4$Prediction, 1,0)
+rf_tp4<-as.data.frame(rf_tp4)
+rf_tp4$model<-"RF4"
+names(rf_tp4)[1] = "accuracy"
+```
+```{r}
+#Comparing Accuracies
+compare4<-data.frame(method = c("Support Vector Machine", "Neural Network", "Random Forest"), accuracy = c(svm4_accuracy, ann4_accuracy, rf4_accuracy))
+ggplot(data = compare4, mapping = aes(x= method, y = accuracy, fill = method)) +geom_bar(stat = "identity")+geom_text(aes(label = round(accuracy,4)), position = position_stack(vjust = .5), color = "white") + labs (x = "Method", y = "Accuracy", title = "Accuracy for Down 2 Yard Line 100-50")
+```
+
+# Yard 0-50 Best Play Type prediction Down 3
+
+```{r}
+set.seed(123)
+yard50_3$play_type<-as.factor(yard50_3$play_type)
+sample<-sample.split(yard50_3$play_type, SplitRatio = .70)
+training5<-subset(yard50_3, sample == TRUE)
+testing5<-subset(yard50_3, sample == FALSE)
+```
+
+
+```{r}
+#Support Vector Machine Model 1 down 3 Yard 0-50
+svm_nfl5 <- svm(play_type ~ yards_gained + yardline_100 + down+ qtr + ydsnet  , data = training5, prob.model = TRUE)
+svm_nfl5
+
+plot(svm_nfl5, training4, ydstogo~yards_gained)
+
+svm_pred5<- predict(svm_nfl5,newdata = testing5)
+
+tab5<- table(testing5$play_type, svm_pred5)
+
+results_svm5<-data.frame(Actual = testing5$play_type, Prediction = svm_pred5)
+
+confusionMatrix(tab5)
+
+tn<-subset(results_svm, Actual == "run", Prediction == "run")
+tp<-subset(results_svm, Actual == "pass", Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass", Prediction == "run")
+fn<-subset(results_svm, Actual == "run", Prediction == "pass")
+svm5_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+svm_tp5<-ifelse(results_svm5$Actual == results_svm5$Prediction, 1,0)
+svm_tp5<-as.data.frame(svm_tp5)
+svm_tp5$model<-"SVM5"
+names(svm_tp5)[1] = "accuracy"
+```
+
+```{r}
+#ANN model Down 3 Yard 0-50
+nfl_nn5<-neuralnet(play_type ~ yards_gained + yardline_100 +  down + qtr + ydsnet ,data = training5, hidden =2)
+
+
+nfl_nn5$result.matrix
+plot(nfl_nn5)
+#Prediction
+
+temp_test5<-subset(testing5,select = c("yards_gained", "yardline_100", "down", "qtr", "ydsnet"))
+head(temp_test5)       
+nfl_nn.results5<-compute(nfl_nn5,temp_test5)
+nfl_nn.results5$net.result
+prob5<-nfl_nn.results5$net.result
+ann5<-ifelse(prob5>=.5, "run", "pass")
+ann5<-as.vector(ann5)
+resultsann5<-data.frame(Actual = testing5$play_type, Prediction = ann5)
+tb_ann5<-table(resultsann5$Actual, resultsann5$Prediction)
+
+
+confusionMatrix(tb_ann5)
+
+tn<-subset(results_svm, Actual == "run", Prediction == "run")
+tp<-subset(results_svm, Actual == "pass", Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass", Prediction == "run")
+fn<-subset(results_svm, Actual == "run", Prediction == "pass")
+ann5_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+ann_tp5<-ifelse(resultsann5$Actual == resultsann5$Prediction, 1,0)
+ann_tp5<-as.data.frame(ann_tp5)
+ann_tp5$model<-"ANN"
+names(ann_tp5)[1] = "accuracy"
+```
+
+```{r}
+#RandomForest model Down 3 Yard 0-50
+random_nfl5<-randomForest(play_type ~ yards_gained + yardline_100 + down  + qtr + ydsnet ,data = training5)
+random_nfl5
+
+plot(random_nfl5)
+#Prediction
+ranForest_pred5<-predict(random_nfl5, testing5)
+
+ran_tb5<-table(testing5$play_type, ranForest_pred5, dnn = c("Actual", "Prediction"))
+results_rf5<-data.frame(Actual = testing5$play_type, Prediction = ranForest_pred5)
+
+confusionMatrix(ran_tb5)
+
+
+tn<-subset(results_svm, Actual == "run", Prediction == "run")
+tp<-subset(results_svm, Actual == "pass", Prediction == "pass")
+fp<-subset(results_svm, Actual == "pass", Prediction == "run")
+fn<-subset(results_svm, Actual == "run", Prediction == "pass")
+rf5_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+rf_tp5<-ifelse(results_rf5$Actual == results_rf5$Prediction, 1,0)
+rf_tp5<-as.data.frame(rf_tp5)
+rf_tp5$model<-"RF5"
+names(rf_tp5)[1] = "accuracy"
+```
+
+```{r}
+#Comparing Accuracies
+compare5<-data.frame(method = c("Support Vector Machine", "Neural Network", "Random Forest"), accuracy = c(svm5_accuracy, ann5_accuracy, rf5_accuracy))
+ggplot(data = compare5, mapping = aes(x= method, y = accuracy, fill = method)) +geom_bar(stat = "identity")+geom_text(aes(label = round(accuracy,4)), position = position_stack(vjust = .5), color = "white") + labs (x = "Method", y = "Accuracy", title = "Accuracy for Down 2 Yard Line 50-0")
+```
+
+
+# 4th Down model and prediction
+#Should teams Execute a play on 4th down if they are on their own 40 with >3 yards to make a 1st down
+
+```{r}
+#subset data based on play being 4th down, yards to go less than 3 and play type. Should a run or pass play be excuted based on being between the teams own 40 and the opposing teams 40
+Down4p<-subset(nflDataa, down == "4" & ydstogo < 3 & play_type == "pass" &  yardline_100 <60)
+
+Down4r<-subset(nflDataa, down == "4" & ydstogo < 3 & play_type == "run" & yardline_100 <60)
+
+#bind 2 data frames of run and pass 
+#Logistic regression
+set.seed(123)
+fourth<-rbind(Down4p,Down4r)
+sample1<-sample.split(fourth$yards_gained, SplitRatio = .75)
+training6<-subset(fourth, sample1 == TRUE)
+testing6<-subset(fourth, sample1 == FALSE)
+
+#Logistic Model
+nfl.fit<-lm(yards_gained ~ ydstogo  + yardline_100 + qtr + ydsnet + play_type, data = training1 )
+summary(nfl.fit)
+plot(nfl.fit)
+
+
+lm_pred<-predict(nfl.fit, testing1)
+
+results_lm1<-data.frame(Actual=testing1$yards_gained,Prediction = lm_pred)
+results_lm1
+
+average<-mean(results_lm1$Prediction)
+average
+#3.305929
+
+ggplot(data = testing1, mapping = aes(x = yardline_100, y = yards_gained)) + geom_point() +geom_smooth(method = "lm", se = FALSE, color = "red", alpha = 1) + labs(x= 'Yard Line on the Field', y = 'Yards Gained')
+```
+
+
+
+```{r}
+#Logistic model
+
+#3rd and long best play type prediction 
+Down3p<-subset(nflDataa, down == "3" & ydstogo < 5 & play_type == "pass" &  yardline_100 <60)
+
+Down3r<-subset(nflDataa, down == "3" & ydstogo < 5 & play_type == "run" & yardline_100 <60)
+
+
+
+third<-rbind(Down3p,Down3r)
+#third$play_type<-as.factor(third$play_type)
+third$yardline_100<-as.integer(third$yardline_100)
+third$yards_gained<-as.integer(third$yards_gained)
+third$ydsnet<-as.integer(third$ydsnet)
+third$qtr<-as.integer(third$qtr)
+
+third$play_type<-ifelse(third$play_type == "run", 0,1)
+
+print(third)
+
+set.seed(123)
+sample1<-sample.split(third$play_type, SplitRatio = .75)
+training7<-subset(third, sample1 == TRUE)
+testing7<-subset(third, sample1 == FALSE)
+
+
+glm_model<-glm(play_type~ yards_gained + yardline_100   + qtr + ydsnet, data = training7)
+summary(glm_model)
+plot(glm_model)
+
+
+#Prediction
+play_pred2<-predict(glm_model, newdata  = testing7)
+
+glm.fit<-ifelse(play_pred2 >=0.5,1 , 0)
+
+tb2<-table(testing7$play_type, glm.fit, dnn = c("Actual", "Prediction"))
+
+results_glm2<-data.frame(Actual = testing7$play_type, Prediction = glm.fit)
+
+confusionMatrix(tb2)
+
+
+tn<-subset(results_glm2, Actual == "run", Prediction == "run")
+tp<-subset(results_glm2, Actual == "pass", Prediction == "pass")
+fp<-subset(results_glm2, Actual == "pass", Prediction == "run")
+fn<-subset(results_glm2, Actual == "run", Prediction == "pass")
+glm_accuracy<-(nrow(tp)+nrow(tn))/(nrow(tp)+nrow(tn)+nrow(fp)+nrow(fn))
+glm_tp<-ifelse(results_glm2$Actual == results_glm2$Prediction, 1,0)
+glm_tp<-as.data.frame(glm_tp)
+glm_tp$model<-"RF5"
+names(glm_tp)[1] = "accuracy"
+```  
+
+
+
