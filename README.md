@@ -4,12 +4,12 @@ NFL Play Type Analysis
 
 Last Modified 04/28/2020
 
-#Problem Statement
+# Problem Statement
 
 Which Machine Learning Algorithm will produce the best accuracy for predicting NFL play type success based on Field Position
 Summary: The goal of this analysis was to determine which play type would be selected based on location on the field of play. 5 ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy  
 
-#Results
+# Results
 
 The results of the analysis are very interesting. Many question can be answered about why team call the plays they do. I discovered that if a team is on their side of the field between their goal line and the 50 yard line the pass play was predicted play of choice. Pass plays which are complete usually net teams more yardage than run plays. 
 Conversely, when team were on the oppsing teams side of the field the predicted play of choice was the run play. When a teams passes the 50 yard line they are now thinking they have a realistic chance of scoreing point on that drive. Their play selection becomes more balanced between run and pass.
