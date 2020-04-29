@@ -1,0 +1,109 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+ 
+---
+
+Phil Ramontal
+CIS 672
+NFL Analysis
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+#Import and view data
+nfl_data<-read.csv("NFL Play by Play 2009-2018.csv")
+print(nfl_data)
+```
+
+```{r}
+nflData<-na.omit(nfl_data)
+```
+
+#Subsets of downs 1-4 for ever team during season 2009-2018
+```{r}
+#All 1st down plays
+nflDown1<-subset(nflData, down == "1",  posteam, )
+```
+
+```{r}
+#All 2nd down plays
+nflDown2<-subset(nflData, down == "2")
+```
+
+```{r}
+#All 3rd down plays
+nflDown3<-subset(nflData, down == "3")
+
+```
+
+```{r}
+#All 4th down plays
+nflDown4<-subset(nflData, down == "4")
+```
+
+#Subset of best and worst NFL teams between 2009-2018
+```{r}
+#New England Patriots
+nflTopTeam<-subset(nflData, ï..homeTeam == "NE" & down == "3")
+```
+
+```{r}
+#Miami Dolphins
+nflbottTeam1<-subset(nflData, ï..homeTeam == "CLE" & down == "3")
+```
+
+```{r}
+third<-subset(nflData, ydstogo >=15 | down >3)
+```
+
+
+```{r}
+ggplot(nflData, aes(x=qtr, fill = play_type)) + geom_bar(position = "dodge") + labs (x = "Quarter", y = " Number of Plays", title = "Number of each play type by Quarter")
+```
+# Descritpion Plot 1
+#The above plot features the play by play type per quarter for NFL games between 2009-2018. The 2 most common plays are the run and the pass play however, there are several other important play types including field goals, punts and kickoffs. All of these play types play an integral part in the outcome of the game. Successful exceution of each play will definately raise the probability of winning. This plot showed an interesting trend in the 2nd and 4th quarters. There is an increase in the pass play during those quarters. Duuring this analysis it would be fruitful to determine the success of this play type againt the success of the run play. 
+```{r}
+ggplot(data = nflDown3, mapping = aes(x=ydstogo)) + geom_histogram(aes(fill = play_type)) + labs(x = "Yards to Go", y = "Play Type", title = "Play Selection Based on Yard to Go to reach 1st Down")
+```
+# Descritpion Plot 2
+#The above plot displays the play called by the offense baased on the yards to go to reach a first down. The more first downs accumilated by a team would lead to a higher probability of scoring points. Interestingly, the pass play is is the dominant play even when the yards to gain are below 5 yards. This is interesting because most teams gain positive yardage with run plays. During analysis it would be meaningful to predict the amount of yardage which would be gained on a given run play based on the location on the field
+
+
+
+```{r}
+ggplot(nflDown3, aes(x = play_type, position = "dodge", stat = "")) + geom_bar(aes(fill = posteam)) + labs(x= "Play Type on 3rd Down", y= "Number of Plays", title = "Play Type on 3rd Down")
+```
+# Descritpion Plot 3
+#This plot displays the play call for each team on 3rd down fo the 2009-2018 season. The pass play is called more than double the run play. During the analysis if would be interesting to determine the average distance needed to gain to get a 1st down. 3rd down efficiency is a stat that is very important to the teams success. All teams are passing the ball on this down. Could a run be a more fruitful play on this down if the yardage needed is under a certain thrushold ? This will have to be determined during analysis. 
+
+```{r}
+ggplot(nflDown4, aes(x = play_type)) + geom_bar(aes(fill = posteam)) + labs(x = "Play Type on 4th Down", y= "Number of plays", title = "Play Type on 4th Down")
+```
+# Descritpion Plot 4 
+#The plot about displays the play call on 4th down. The down is usually a punt from the offense to the other team. However, so much can happen on this particular down. Other than a punt there can be a field goal, or a run or pass. In recent seasons coaches have become more likely to go for it on 4th down based on the location of the field however, this analysis will endevor to determine if it makes sense to go for it at any point on the field. The main question is what is the rate of success based on the location on the field.  
+```{r}
+ggplot(nflDown1, aes(x = play_type)) + geom_bar(aes(fill = posteam)) + labs(x = "Play Type on 1st Down", y= "Number of plays", title = "Play Type on 1st Down")
+
+```
+# Descritpion Plot 5
+#The plot above displays the play call on 1st down from 2009-2018 seasons. this interestingly, is the only down in which the run plays outnumber the pass. This shows that coaches tend to try to balance their play call on 1st down. Having a positive play call and execution on this down is important because it puts the offense at a significant advantage. With positive yardage on 1st down gaining the necessary yardage on th next 2 plays becomes much easier. Getting more first downs is the be way to keep the opposition on their heels
+```{r}
+ggplot(nflTopTeam, aes(x=play_type)) + geom_bar() + labs(x = "NE Patroits 3rd Down Play Type ", y = "Number of Plays", title =  "NFL Best Team Play Selection on 3rd Down")
+```
+# Descritpion Plot 6
+#The above play displays the play selection of the New England patroits. They have been one of th most dominant teams over the last 20 years. I wanted to see what type of plays were call in their 3rd down situation. The pass the ball over two times as much as a run. This was surprising to me because watching this team over the years they have been a very balanced team. 
+```{r}
+ggplot(nflbottTeam1, aes(x=play_type)) + geom_bar() + labs(x = "Clevelan Browns 3rd Down Play Type ", y = "Number of Plays", title =  "NFL Worst Team Play Selection on 3rd Down")
+```
+# Descritpion Plot 7
+#The above Plot displays 3rd down play selection for the Cleveland Browns. The Browns have been the worst team in the NFL over the last 20 years. Comparing these 2 plot was shocking. The browns and the Patroits play selection on 3rd down is almost identical. Both teams pass the ball much more than they run. In my analysis I am iterested to know if this is the standard ratio across the NFL. This is why know the average yards to go distance on 3rd down is important. Knowing this will shed light on the play call decision making.
+```{r}
+ggplot(nflDown2, aes(x = play_type)) + geom_bar(aes(fill = posteam)) + labs(x = "Play Type on 2nd Down", y= "Number of plays", title = "Play Type on 2nd Down")
+```
+# Descritpion Plot 8 
+#The above Plots displays play calls by each team on 2nd down. The play call between 1st and second changes significantly in favor of the pass. Without a successfull play on 1st down this forces teams into a difficult spot in terms of play calling. They think that gaining the necessary yardage to make another 1st down requires a pass. During analysis it would be useful to determine if teams who pass the ball on second down after having a unsuccessful play on 1st down have better odds of ultimately making a first down. 
