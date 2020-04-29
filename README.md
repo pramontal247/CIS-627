@@ -16,8 +16,8 @@ Conversely, when team were on the oppsing teams side of the field the predicted 
 5 ML algorithms are used to train and test our data. SVM. Random Forest, Linear Regression, Neural Network and Logistic Regression. SVM, RF, NN were used as the primary ML algorithms in training and testing the data to predict play type based on fiel position. LM model was used to determine what teams should do on 4th down and short with < 3 yards to go to reach a 1st down and being at least at the teams own 40 yard line. I found that on average the LM model preidcted that a team would reach the yards to gain for a 1st down. 
 GLM was used to determine what play type a team should used on 3rd down and long > 5 yard and the team being at at least their own 40 yard line. The most used play was a pass play. 
 
-![picture](desktop/capture.png)
-![picture](desktop/capture1.png)
+![](desktop/capture.png)
+![](desktop/capture1.png)
 
 
 
