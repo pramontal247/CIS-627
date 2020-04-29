@@ -1,4 +1,4 @@
-Class CIS-627 Big Data Capstone
+# CIS-627 Big Data Capstone
 
 NFL Play Type Analysis
 
