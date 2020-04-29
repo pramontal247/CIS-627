@@ -2,12 +2,23 @@
 
 NFL Play Type Analysis
 
-Last Modified 04/28/2020
+Last Modified 04/29/2020
+
 
 # Problem Statement
 
 Which Machine Learning Algorithm will produce the best accuracy for predicting NFL play type success based on Field Position
 Summary: The goal of this analysis was to determine which play type would be selected based on location on the field of play. 5 ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy  
+
+
+# Requirement
+
+Script written in R. Packages used: `tidyverse` `ggplot2` `dplyr` `corrplot` `caTools` `caret` `ROCR` `MASS` `randomForest` `neuralnet`
+`e1071`
+
+# Summary
+
+The goal of this analysis was to determine which play type would be selected based on location on the field of play. 5 ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy  
 
 # Results
 
