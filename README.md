@@ -18,7 +18,7 @@ Script written in R. Packages used: `tidyverse` `ggplot2` `dplyr` `corrplot` `ca
 
 # Summary
 
-The goal of this analysis was to determine which play type would be selected based on location on the field of play. Five ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy and how play type selection could be statistical proven
+The goal of this analysis is to determine which play type would be selected based on location on the field of play. Five ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy and how play type selection could be statistical proven
 
 
 # Data 
