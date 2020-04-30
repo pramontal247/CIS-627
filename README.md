@@ -18,12 +18,14 @@ Script written in R. Packages used: `tidyverse` `ggplot2` `dplyr` `corrplot` `ca
 
 # Summary
 
-The goal of this analysis was to determine which play type would be selected based on location on the field of play. Five ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy 
+The goal of this analysis was to determine which play type would be selected based on location on the field of play. Five ML algorithms were used to train and test our data to determine which algorithm provided the best accuracy and how play type selection could be statistical proven
 
 
-# Execution 
+# Data 
+The set is over 400K rown and 255 columns. After subsetting to meet the analysis parameters I was left with 318K rows and 35 columns.
+the subsets included seperating rows by the Down of the play and the Play type. Below is a visualization of all play types inculded in an NFL game. Based on this I decided to subset for the two most used playtypes. Below is a link to the original data set. 
 
-
+https://www.kaggle.com/maxhorowitz/nflplaybyplay2009to2016
 
 <a href="https://ibb.co/QrF5fFd"><img src="https://i.ibb.co/FgbPKbV/Capture4.png" alt="Capture4" border="0"></a>
 
