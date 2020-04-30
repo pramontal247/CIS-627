@@ -1,6 +1,6 @@
-# CIS-627 Big Data Capstone
+# NFL Play Type Analysis
 
-NFL Play Type Analysis
+CIS-627 Big Data Capstone Project
 
 Last Modified 04/30/2020
 
