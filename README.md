@@ -1,4 +1,4 @@
-# NFL Play Type Analysis Using Machine Learning 
+# NFL Play Type Analysis Using Machine Learning Algorithm's
 
 CIS-627 Big Data Capstone Project
 
