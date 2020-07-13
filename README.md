@@ -39,7 +39,7 @@ GLM was used to determine what play type a team should used on 3rd down and long
 
 <a href="https://ibb.co/Hr3SKzq"><img src="https://i.ibb.co/FBCrhwz/Capture.png" alt="Capture" border="0"></a>
 
-# Future work
+# Future Work
 
 
 
